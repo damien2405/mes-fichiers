@@ -40,6 +40,9 @@ data class FtpEntry(
     val modified: Long
 )
 
+/** Dossier ouvert en priorité sur un serveur sans dossier de départ défini. */
+const val DEFAULT_START = "/DATA/Documents/Serveur_Maison"
+
 object FtpOps {
 
     /** Ouvre une connexion FTP/FTPS authentifiée. Bloquant : à appeler hors du thread principal. */
@@ -139,7 +142,9 @@ object FtpOps {
     /** "~" désigne le dossier où le serveur dépose l'utilisateur après la connexion. */
     fun resolve(c: FTPClient, path: String, start: String = ""): String {
         if (path != "~") return path
-        if (start.isNotBlank()) return start
+        // dossier de départ choisi (ou celui par défaut) s'il existe, sinon dossier de connexion
+        val wanted = start.ifBlank { DEFAULT_START }
+        if (c.changeWorkingDirectory(wanted)) return wanted
         return c.printWorkingDirectory() ?: "/"
     }
 
