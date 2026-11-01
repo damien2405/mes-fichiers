@@ -58,6 +58,9 @@ object AppModel {
     /** Dossier de connexion résolu de chaque serveur (pour le fil d'Ariane). */
     val homes = HashMap<String, String>()
 
+    /** Vrai quand on avance dans l'appli (animation vers la gauche), faux quand on revient. */
+    var forward = true
+
     private var uidGen = 10L
     fun nextUid(): Long = uidGen++
 
@@ -83,11 +86,13 @@ object AppModel {
     // ------------------------------------------------------------ navigation
 
     fun push(s: Screen) {
+        forward = true
         stack.add(s)
     }
 
     fun back(): Boolean {
         if (stack.size > 1) {
+            forward = false
             stack.removeAt(stack.lastIndex)
             return true
         }
@@ -95,6 +100,7 @@ object AppModel {
     }
 
     fun toHome() {
+        forward = false
         while (stack.size > 1) stack.removeAt(stack.lastIndex)
     }
 
@@ -102,8 +108,10 @@ object AppModel {
     fun goTo(loc: Loc) {
         val i = stack.indexOfLast { it is Screen.Browse && it.loc == loc }
         if (i >= 0) {
+            forward = false
             while (stack.size > i + 1) stack.removeAt(stack.lastIndex)
         } else {
+            forward = true
             stack.add(Screen.Browse(loc))
         }
     }

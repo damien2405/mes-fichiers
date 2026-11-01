@@ -101,7 +101,9 @@ fun NetworkScreen() {
                     Row(
                         Modifier
                             .fillMaxWidth()
-                            .background(if (isSel) cs.primary.copy(alpha = 0.12f) else androidx.compose.ui.graphics.Color.Transparent)
+                            .padding(horizontal = 16.dp, vertical = 5.dp)
+                            .clip(RoundedCornerShape(24.dp))
+                            .background(if (isSel) cs.primary.copy(alpha = 0.16f) else cs.surface)
                             .combinedClickable(
                                 onClick = {
                                     if (selecting) {
@@ -112,22 +114,17 @@ fun NetworkScreen() {
                                 },
                                 onLongClick = { if (!isSel) selected.add(s.id) }
                             )
-                            .padding(horizontal = 20.dp, vertical = 12.dp),
+                            .padding(horizontal = 16.dp, vertical = 14.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         if (selecting) {
                             SelCircle(isSel)
                             Spacer(Modifier.width(12.dp))
                         }
-                        Box(
-                            Modifier.size(56.dp).clip(RoundedCornerShape(18.dp)).background(cs.surfaceVariant),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text("FTP", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = cs.onSurfaceVariant)
-                        }
+                        IconChip(Glyph.SERVER, androidx.compose.ui.graphics.Color(0xFF3B7BFF), 50.dp)
                         Spacer(Modifier.width(16.dp))
                         Column(Modifier.weight(1f)) {
-                            Text(s.name, fontSize = 18.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Text(s.name, fontSize = 17.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
                             Text(s.cfg.host, fontSize = 14.sp, color = cs.onSurfaceVariant, maxLines = 1)
                         }
                     }

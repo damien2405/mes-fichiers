@@ -14,10 +14,10 @@
         android:pathData="M25,50 a5,5 0 0 1 5,-5 H78 a5,5 0 0 1 5,5 V74 a5,5 0 0 1 -5,5 H30 a5,5 0 0 1 -5,-5 z" />
     <!-- montagnes -->
     <path
-        android:fillColor="#FF3E6BFF"
+        android:fillColor="#FFFF9A00"
         android:pathData="M33,73 L46,56 L54,66 L61,58 L75,73 z" />
     <!-- soleil -->
     <path
-        android:fillColor="#FFFFB300"
+        android:fillColor="#FFFF6A3D"
         android:pathData="M67,55 m-4,0 a4,4 0 1 0 8,0 a4,4 0 1 0 -8,0" />
 </vector>

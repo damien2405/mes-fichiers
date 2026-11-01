@@ -38,24 +38,27 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-enum class Glyph { FOLDER, IMAGE, VIDEO, AUDIO, DOC, DOWNLOAD, SERVER, PHONE, APK }
+enum class Glyph { FOLDER, IMAGE, VIDEO, AUDIO, DOC, DOWNLOAD, SERVER, PHONE, APK, GRID, LIST }
 
 /** Icônes dessinées à la main (évite la grosse bibliothèque d'icônes étendues). */
 @Composable
 fun GlyphIcon(kind: Glyph, tint: Color, modifier: Modifier = Modifier) {
     if (kind == Glyph.APK) {
         Box(modifier, contentAlignment = Alignment.Center) {
-            Text("APK", color = tint, fontSize = 13.sp, fontWeight = FontWeight.ExtraBold)
+            Text("APK", color = tint, fontSize = 12.sp, fontWeight = FontWeight.ExtraBold)
         }
         return
     }
@@ -66,16 +69,23 @@ fun GlyphIcon(kind: Glyph, tint: Color, modifier: Modifier = Modifier) {
         val st = Stroke(width = sw, cap = StrokeCap.Round, join = StrokeJoin.Round)
         when (kind) {
             Glyph.FOLDER -> {
-                val p = Path()
-                p.moveTo(w * 0.08f, h * 0.22f)
-                p.lineTo(w * 0.38f, h * 0.22f)
-                p.lineTo(w * 0.48f, h * 0.34f)
-                p.lineTo(w * 0.92f, h * 0.34f)
-                p.lineTo(w * 0.92f, h * 0.80f)
-                p.lineTo(w * 0.08f, h * 0.80f)
-                p.close()
-                drawPath(p, tint)
-                drawPath(p, tint, style = Stroke(width = w * 0.06f, join = StrokeJoin.Round))
+                val back = lerp(tint, Color.Black, 0.14f)
+                val frontTop = lerp(tint, Color.White, 0.38f)
+                // onglet + panneau arrière
+                drawRoundRect(
+                    color = back, topLeft = Offset(w * 0.08f, h * 0.17f), size = Size(w * 0.40f, h * 0.30f),
+                    cornerRadius = CornerRadius(w * 0.07f)
+                )
+                drawRoundRect(
+                    color = back, topLeft = Offset(w * 0.08f, h * 0.26f), size = Size(w * 0.84f, h * 0.56f),
+                    cornerRadius = CornerRadius(w * 0.10f)
+                )
+                // panneau avant, en dégradé
+                drawRoundRect(
+                    brush = Brush.verticalGradient(listOf(frontTop, tint), startY = h * 0.34f, endY = h * 0.84f),
+                    topLeft = Offset(w * 0.08f, h * 0.34f), size = Size(w * 0.84f, h * 0.50f),
+                    cornerRadius = CornerRadius(w * 0.10f)
+                )
             }
             Glyph.IMAGE -> {
                 drawRoundRect(
@@ -148,26 +158,53 @@ fun GlyphIcon(kind: Glyph, tint: Color, modifier: Modifier = Modifier) {
                 )
                 drawLine(tint, Offset(w * 0.44f, h * 0.2f), Offset(w * 0.56f, h * 0.2f), strokeWidth = sw, cap = StrokeCap.Round)
             }
+            Glyph.GRID -> {
+                val s = w * 0.28f
+                val r = CornerRadius(w * 0.06f)
+                drawRoundRect(color = tint, topLeft = Offset(w * 0.16f, h * 0.16f), size = Size(s, s), cornerRadius = r)
+                drawRoundRect(color = tint, topLeft = Offset(w * 0.56f, h * 0.16f), size = Size(s, s), cornerRadius = r)
+                drawRoundRect(color = tint, topLeft = Offset(w * 0.16f, h * 0.56f), size = Size(s, s), cornerRadius = r)
+                drawRoundRect(color = tint, topLeft = Offset(w * 0.56f, h * 0.56f), size = Size(s, s), cornerRadius = r)
+            }
+            Glyph.LIST -> {
+                drawLine(tint, Offset(w * 0.2f, h * 0.27f), Offset(w * 0.8f, h * 0.27f), strokeWidth = sw * 1.2f, cap = StrokeCap.Round)
+                drawLine(tint, Offset(w * 0.2f, h * 0.5f), Offset(w * 0.8f, h * 0.5f), strokeWidth = sw * 1.2f, cap = StrokeCap.Round)
+                drawLine(tint, Offset(w * 0.2f, h * 0.73f), Offset(w * 0.8f, h * 0.73f), strokeWidth = sw * 1.2f, cap = StrokeCap.Round)
+            }
             Glyph.APK -> {}
         }
     }
 }
 
-fun kindColor(k: FileKind): Color = when (k) {
-    FileKind.IMAGE -> Color(0xFF2E9E6B)
-    FileKind.VIDEO -> Color(0xFF8E5BE0)
-    FileKind.AUDIO -> Color(0xFF5B6EE0)
-    FileKind.PDF -> Color(0xFFE0524F)
-    FileKind.DOC -> Color(0xFF3E7BE0)
-    FileKind.SHEET -> Color(0xFF2E9E4F)
-    FileKind.SLIDES -> Color(0xFFE0762E)
-    FileKind.TEXT -> Color(0xFF7A7A80)
-    FileKind.ARCHIVE -> Color(0xFFE08A1E)
-    FileKind.APK -> Color(0xFF7BB500)
-    FileKind.OTHER -> Color(0xFF7A7A80)
+/** Pastille colorée en dégradé avec une icône blanche au centre. */
+@Composable
+fun IconChip(glyph: Glyph, color: Color, size: Dp, modifier: Modifier = Modifier) {
+    Box(
+        modifier
+            .size(size)
+            .clip(RoundedCornerShape(size * 0.32f))
+            .background(Brush.linearGradient(listOf(lerp(color, Color.White, 0.28f), color))),
+        contentAlignment = Alignment.Center
+    ) {
+        GlyphIcon(glyph, Color.White, Modifier.size(size * 0.54f))
+    }
 }
 
-val FolderColor = Color(0xFFF5A623)
+fun kindColor(k: FileKind): Color = when (k) {
+    FileKind.IMAGE -> Color(0xFF2FB579)
+    FileKind.VIDEO -> Color(0xFF8E5BE0)
+    FileKind.AUDIO -> Color(0xFF5B6EE0)
+    FileKind.PDF -> Color(0xFFE5534F)
+    FileKind.DOC -> Color(0xFF3E7BE0)
+    FileKind.SHEET -> Color(0xFF2E9E4F)
+    FileKind.SLIDES -> Color(0xFFE5782E)
+    FileKind.TEXT -> Color(0xFF7A8090)
+    FileKind.ARCHIVE -> Color(0xFFE59A1E)
+    FileKind.APK -> Color(0xFF7BB500)
+    FileKind.OTHER -> Color(0xFF7A8090)
+}
+
+val FolderColor = Color(0xFFFFB02E)
 
 @Composable
 fun SectionCard(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
@@ -181,11 +218,22 @@ fun SectionCard(modifier: Modifier = Modifier, content: @Composable ColumnScope.
 }
 
 @Composable
+fun SectionLabel(text: String) {
+    Text(
+        text,
+        fontSize = 13.sp,
+        fontWeight = FontWeight.SemiBold,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(start = 28.dp, top = 22.dp, bottom = 8.dp)
+    )
+}
+
+@Composable
 fun SelCircle(selected: Boolean) {
     val cs = MaterialTheme.colorScheme
     val base = Modifier.size(26.dp).clip(CircleShape)
     Box(
-        if (selected) base.background(cs.primary) else base.border(2.dp, cs.onSurfaceVariant.copy(alpha = 0.5f), CircleShape),
+        if (selected) base.background(cs.primary) else base.background(cs.surface.copy(alpha = 0.7f)).border(2.dp, cs.onSurfaceVariant.copy(alpha = 0.55f), CircleShape),
         contentAlignment = Alignment.Center
     ) {
         if (selected) Icon(Icons.Default.Check, contentDescription = null, tint = cs.onPrimary, modifier = Modifier.size(18.dp))
@@ -258,7 +306,7 @@ fun ActionBar(actions: List<BarAction>, modifier: Modifier = Modifier) {
         modifier = modifier,
         shape = RoundedCornerShape(34.dp),
         color = MaterialTheme.colorScheme.surface,
-        shadowElevation = 10.dp
+        shadowElevation = 12.dp
     ) {
         Row(Modifier.padding(horizontal = 10.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             for (a in actions) {

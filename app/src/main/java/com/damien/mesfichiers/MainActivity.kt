@@ -5,6 +5,13 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -37,14 +44,29 @@ fun Root() {
     val holder = rememberSaveableStateHolder()
     BackHandler(enabled = AppModel.stack.size > 1) { AppModel.back() }
     val top = AppModel.stack.last()
-    Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
-        holder.SaveableStateProvider(top.uid) {
-            when (top) {
-                Screen.Home -> HomeScreen()
-                Screen.Network -> NetworkScreen()
-                is Screen.Browse -> BrowseScreen(top)
-                is Screen.Form -> FormScreen(top)
-                is Screen.Viewer -> ViewerScreen(top)
+    AnimatedContent(
+        targetState = top,
+        contentKey = { it.uid },
+        transitionSpec = {
+            if (AppModel.forward) {
+                (slideInHorizontally(tween(280)) { it / 5 } + fadeIn(tween(280))) togetherWith
+                    (slideOutHorizontally(tween(280)) { -it / 8 } + fadeOut(tween(200)))
+            } else {
+                (slideInHorizontally(tween(280)) { -it / 8 } + fadeIn(tween(280))) togetherWith
+                    (slideOutHorizontally(tween(280)) { it / 5 } + fadeOut(tween(200)))
+            }
+        },
+        label = "navigation"
+    ) { screen ->
+        holder.SaveableStateProvider(screen.uid) {
+            Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+                when (screen) {
+                    Screen.Home -> HomeScreen()
+                    Screen.Network -> NetworkScreen()
+                    is Screen.Browse -> BrowseScreen(screen)
+                    is Screen.Form -> FormScreen(screen)
+                    is Screen.Viewer -> ViewerScreen(screen)
+                }
             }
         }
     }

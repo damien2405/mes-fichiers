@@ -1,6 +1,9 @@
 package com.damien.mesfichiers
 
 import android.graphics.Bitmap
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.awaitEachGesture
@@ -36,6 +39,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
@@ -89,11 +93,11 @@ fun ViewerScreen(s: Screen.Viewer) {
             ImagePage(s.refs[page]) { chrome = !chrome }
         }
 
-        if (chrome) {
+        AnimatedVisibility(visible = chrome, enter = fadeIn(), exit = fadeOut()) {
             Row(
                 Modifier
                     .fillMaxWidth()
-                    .background(Color(0x99000000))
+                    .background(Brush.verticalGradient(listOf(Color(0xCC000000), Color(0x00000000))))
                     .statusBarsPadding()
                     .padding(horizontal = 4.dp, vertical = 4.dp),
                 verticalAlignment = Alignment.CenterVertically

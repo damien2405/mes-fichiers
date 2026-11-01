@@ -15,7 +15,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.border
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -30,8 +33,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TextField
-import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -205,7 +207,7 @@ private fun Field(
     hide: Boolean = false,
     trailing: (@Composable () -> Unit)? = null
 ) {
-    TextField(
+    OutlinedTextField(
         value = value,
         onValueChange = onChange,
         label = { Text(label) },
@@ -214,25 +216,30 @@ private fun Field(
         visualTransformation = if (hide) PasswordVisualTransformation() else VisualTransformation.None,
         keyboardOptions = KeyboardOptions(keyboardType = keyboard),
         trailingIcon = trailing,
-        colors = TextFieldDefaults.colors(
-            focusedContainerColor = Color.Transparent,
-            unfocusedContainerColor = Color.Transparent,
-            disabledContainerColor = Color.Transparent
-        ),
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
+        shape = RoundedCornerShape(16.dp),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp)
     )
 }
 
 @Composable
 private fun Choice(label: String, options: List<String>, index: Int, onPick: (Int) -> Unit) {
     var open by remember { mutableStateOf(false) }
-    Column(Modifier.fillMaxWidth().padding(horizontal = 28.dp, vertical = 10.dp)) {
-        Text(label, fontSize = 13.sp, color = MaterialTheme.colorScheme.primary)
+    val cs = MaterialTheme.colorScheme
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 6.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .border(1.dp, cs.outlineVariant, RoundedCornerShape(16.dp))
+            .clickable { open = true }
+            .padding(horizontal = 16.dp, vertical = 10.dp)
+    ) {
+        Text(label, fontSize = 12.sp, color = cs.primary)
         Box {
             Text(
                 options[index.coerceIn(0, options.lastIndex)] + "   ▾",
-                fontSize = 18.sp,
-                modifier = Modifier.clickable { open = true }.padding(vertical = 8.dp)
+                fontSize = 17.sp,
+                modifier = Modifier.padding(vertical = 4.dp)
             )
             DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
                 options.forEachIndexed { i, o ->

@@ -13,6 +13,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -30,6 +32,10 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsBottomHeight
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items as gridItems
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -45,6 +51,8 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -67,7 +75,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -154,6 +164,7 @@ private fun BrowseContent(loc: Loc) {
     var renaming by remember { mutableStateOf<Entry?>(null) }
     var busy by remember { mutableStateOf<String?>(null) }
     var menu by remember { mutableStateOf(false) }
+    var gridMode by rememberSaveable { mutableStateOf<Boolean?>(null) }
     var dirShown by remember { mutableStateOf<String?>(null) }
     var sortMenu by remember { mutableStateOf(false) }
     val hidden = AppModel.showHidden
@@ -193,6 +204,8 @@ private fun BrowseContent(loc: Loc) {
     }
     val selecting = selected.isNotEmpty()
     val searching = q != null
+    val photos = shown.count { !it.isDir && kindOf(it.name) == FileKind.IMAGE }
+    val grid = gridMode ?: (shown.isNotEmpty() && photos * 2 > shown.size)
 
     BackHandler(enabled = selecting || searching) {
         if (selecting) selected.clear() else query = null
@@ -303,6 +316,13 @@ private fun BrowseContent(loc: Loc) {
                                     menu = false
                                     reload++
                                 })
+                                DropdownMenuItem(
+                                    text = { Text(if (grid) "Afficher en liste" else "Afficher en grille") },
+                                    onClick = {
+                                        menu = false
+                                        gridMode = !grid
+                                    }
+                                )
                                 val dir = dirShown
                                 if (serverId != null && dir != null) {
                                     if (dir != "/") {
@@ -345,23 +365,24 @@ private fun BrowseContent(loc: Loc) {
                 )
             }
 
-            // ligne de tri, comme dans « Mes fichiers »
+            // ligne d'infos : nombre d'éléments, tri, vue liste/grille
             Row(
-                Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 6.dp),
+                Modifier.fillMaxWidth().padding(start = 24.dp, end = 12.dp, top = 4.dp, bottom = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
                     if (shown.size > 1) shown.size.toString() + " éléments" else shown.size.toString() + " élément",
-                    fontSize = 14.sp,
+                    fontSize = 13.sp,
                     color = cs.onSurfaceVariant,
                     modifier = Modifier.weight(1f)
                 )
                 Box {
                     Text(
                         SORT_LABELS[sortKey] + " ▾",
-                        fontSize = 15.sp,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium,
                         color = cs.onSurfaceVariant,
-                        modifier = Modifier.clip(RoundedCornerShape(10.dp)).clickable { sortMenu = true }.padding(8.dp)
+                        modifier = Modifier.clip(RoundedCornerShape(12.dp)).clickable { sortMenu = true }.padding(horizontal = 10.dp, vertical = 8.dp)
                     )
                     DropdownMenu(expanded = sortMenu, onDismissRequest = { sortMenu = false }) {
                         SORT_LABELS.forEachIndexed { i, l ->
@@ -376,48 +397,92 @@ private fun BrowseContent(loc: Loc) {
                     if (asc) "↑" else "↓",
                     fontSize = 18.sp,
                     color = cs.onSurfaceVariant,
-                    modifier = Modifier.clip(RoundedCornerShape(10.dp)).clickable { asc = !asc }.padding(horizontal = 12.dp, vertical = 6.dp)
+                    modifier = Modifier.clip(RoundedCornerShape(12.dp)).clickable { asc = !asc }.padding(horizontal = 10.dp, vertical = 6.dp)
                 )
+                IconButton(onClick = { gridMode = !grid }, modifier = Modifier.size(38.dp)) {
+                    GlyphIcon(if (grid) Glyph.LIST else Glyph.GRID, cs.onSurfaceVariant, Modifier.size(22.dp))
+                }
             }
 
-            val st = state
-            when {
-                st is Load.Loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator()
-                }
-                st is Load.Error -> Column(
-                    Modifier.fillMaxSize().padding(32.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    Text(st.msg, color = cs.error, textAlign = TextAlign.Center, fontSize = 16.sp)
-                    Spacer(Modifier.height(16.dp))
-                    Button(onClick = { reload++ }) { Text("Réessayer") }
-                }
-                shown.isEmpty() -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text(
-                        if (q.isNullOrBlank()) "Aucun fichier" else "Aucun résultat",
-                        color = cs.onSurfaceVariant,
-                        fontSize = 16.sp
-                    )
-                }
-                else -> LazyColumn(
-                    Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(bottom = if (selecting) 110.dp else 16.dp)
-                ) {
-                    items(shown, key = { it.path }) { e ->
-                        val isSel = e.path in selected
-                        EntryRow(
-                            e = e,
-                            ref = if (e.isDir) null else refOf(e),
-                            showParent = isCategory,
-                            selecting = selecting,
-                            selected = isSel,
-                            onClick = { openEntry(e) },
-                            onLong = { if (!isSel) selected.add(e.path) }
+            // contenu : une grande carte aux coins du haut arrondis
+            Surface(
+                modifier = Modifier.fillMaxSize(),
+                color = cs.surface,
+                shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+            ) {
+                val st = state
+                when {
+                    st is Load.Loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator()
+                    }
+                    st is Load.Error -> Column(
+                        Modifier.fillMaxSize().padding(32.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Text(st.msg, color = cs.error, textAlign = TextAlign.Center, fontSize = 16.sp)
+                        Spacer(Modifier.height(16.dp))
+                        Button(onClick = { reload++ }) { Text("Réessayer") }
+                    }
+                    shown.isEmpty() -> Column(
+                        Modifier.fillMaxSize(),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        GlyphIcon(Glyph.FOLDER, FolderColor.copy(alpha = 0.5f), Modifier.size(72.dp))
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            if (q.isNullOrBlank()) "Dossier vide" else "Aucun résultat",
+                            color = cs.onSurfaceVariant,
+                            fontSize = 16.sp
                         )
                     }
-                    item { Spacer(Modifier.windowInsetsBottomHeight(WindowInsets.navigationBars)) }
+                    grid -> LazyVerticalGrid(
+                        columns = GridCells.Adaptive(minSize = 104.dp),
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(start = 10.dp, end = 10.dp, top = 12.dp, bottom = if (selecting) 110.dp else 16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        gridItems(shown, key = { it.path }) { e ->
+                            val isSel = e.path in selected
+                            GridTile(
+                                e = e,
+                                ref = if (e.isDir) null else refOf(e),
+                                selecting = selecting,
+                                selected = isSel,
+                                onClick = { openEntry(e) },
+                                onLong = { if (!isSel) selected.add(e.path) }
+                            )
+                        }
+                        item(span = { GridItemSpan(maxLineSpan) }) {
+                            Spacer(Modifier.windowInsetsBottomHeight(WindowInsets.navigationBars))
+                        }
+                    }
+                    else -> LazyColumn(
+                        Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(top = 8.dp, bottom = if (selecting) 110.dp else 16.dp)
+                    ) {
+                        items(shown, key = { it.path }) { e ->
+                            val isSel = e.path in selected
+                            Column {
+                                EntryRow(
+                                    e = e,
+                                    ref = if (e.isDir) null else refOf(e),
+                                    showParent = isCategory,
+                                    selecting = selecting,
+                                    selected = isSel,
+                                    onClick = { openEntry(e) },
+                                    onLong = { if (!isSel) selected.add(e.path) }
+                                )
+                                HorizontalDivider(
+                                    Modifier.padding(start = 92.dp, end = 24.dp),
+                                    color = cs.outlineVariant.copy(alpha = 0.7f)
+                                )
+                            }
+                        }
+                        item { Spacer(Modifier.windowInsetsBottomHeight(WindowInsets.navigationBars)) }
+                    }
                 }
             }
         }
@@ -606,17 +671,17 @@ private fun EntryRow(
             .fillMaxWidth()
             .background(if (selected) cs.primary.copy(alpha = 0.12f) else Color.Transparent)
             .combinedClickable(onClick = onClick, onLongClick = onLong)
-            .padding(horizontal = 20.dp, vertical = 9.dp),
+            .padding(horizontal = 20.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         if (selecting) {
             SelCircle(selected)
             Spacer(Modifier.width(12.dp))
         }
-        FileIcon(e, ref, 54.dp)
+        FileIcon(e, ref, 52.dp)
         Spacer(Modifier.width(16.dp))
         Column(Modifier.weight(1f)) {
-            Text(e.name, fontSize = 17.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(e.name, fontSize = 16.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
             if (sub.isNotEmpty()) {
                 Text(sub.toString(), fontSize = 13.sp, color = cs.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
@@ -637,34 +702,40 @@ private fun FileIcon(e: Entry, ref: ImageRef?, size: Dp) {
     val kind = kindOf(e.name)
     val color = kindColor(kind)
     if (ref != null && (kind == FileKind.IMAGE || (kind == FileKind.VIDEO && ref.serverId == null))) {
-        Thumb(ref, kind, size)
+        Thumb(ref, kind, Modifier.size(size))
+        return
+    }
+    val glyph: Glyph? = when (kind) {
+        FileKind.AUDIO -> Glyph.AUDIO
+        FileKind.VIDEO -> Glyph.VIDEO
+        FileKind.IMAGE -> Glyph.IMAGE
+        FileKind.APK -> Glyph.APK
+        else -> null
+    }
+    if (glyph != null) {
+        IconChip(glyph, color, size)
         return
     }
     Box(
-        Modifier.size(size).clip(RoundedCornerShape(16.dp)).background(color.copy(alpha = 0.14f)),
+        Modifier
+            .size(size)
+            .clip(RoundedCornerShape(size * 0.32f))
+            .background(Brush.linearGradient(listOf(lerp(color, Color.White, 0.28f), color))),
         contentAlignment = Alignment.Center
     ) {
-        when (kind) {
-            FileKind.AUDIO -> GlyphIcon(Glyph.AUDIO, color, Modifier.size(30.dp))
-            FileKind.VIDEO -> GlyphIcon(Glyph.VIDEO, color, Modifier.size(30.dp))
-            FileKind.IMAGE -> GlyphIcon(Glyph.IMAGE, color, Modifier.size(30.dp))
-            FileKind.APK -> GlyphIcon(Glyph.APK, color, Modifier.size(30.dp))
-            else -> {
-                val ext = extOf(e.name).uppercase()
-                Text(
-                    if (ext.isEmpty()) "?" else ext.take(4),
-                    color = color,
-                    fontSize = if (ext.length > 3) 11.sp else 13.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    maxLines = 1
-                )
-            }
-        }
+        val ext = extOf(e.name).uppercase()
+        Text(
+            if (ext.isEmpty()) "?" else ext.take(4),
+            color = Color.White,
+            fontSize = if (ext.length > 3) 11.sp else 13.sp,
+            fontWeight = FontWeight.ExtraBold,
+            maxLines = 1
+        )
     }
 }
 
 @Composable
-private fun Thumb(ref: ImageRef, kind: FileKind, size: Dp) {
+private fun Thumb(ref: ImageRef, kind: FileKind, modifier: Modifier) {
     val color = kindColor(kind)
     var bmp by remember(ref.key) { mutableStateOf(Images.peek(ref, 384)) }
     LaunchedEffect(ref.key) {
@@ -679,7 +750,7 @@ private fun Thumb(ref: ImageRef, kind: FileKind, size: Dp) {
         }
     }
     Box(
-        Modifier.size(size).clip(RoundedCornerShape(16.dp)).background(color.copy(alpha = 0.14f)),
+        modifier.clip(RoundedCornerShape(16.dp)).background(color.copy(alpha = 0.14f)),
         contentAlignment = Alignment.Center
     ) {
         val b = bmp
@@ -692,6 +763,51 @@ private fun Thumb(ref: ImageRef, kind: FileKind, size: Dp) {
             )
         } else {
             GlyphIcon(if (kind == FileKind.VIDEO) Glyph.VIDEO else Glyph.IMAGE, color, Modifier.size(28.dp))
+        }
+    }
+}
+
+/** Vignette de la vue en grille : photo plein cadre, ou icône et nom pour le reste. */
+@Composable
+private fun GridTile(
+    e: Entry,
+    ref: ImageRef?,
+    selecting: Boolean,
+    selected: Boolean,
+    onClick: () -> Unit,
+    onLong: () -> Unit
+) {
+    val cs = MaterialTheme.colorScheme
+    val kind = kindOf(e.name)
+    val isPhoto = !e.isDir && ref != null &&
+        (kind == FileKind.IMAGE || (kind == FileKind.VIDEO && ref.serverId == null))
+    Column(
+        Modifier
+            .clip(RoundedCornerShape(18.dp))
+            .background(if (selected) cs.primary.copy(alpha = 0.16f) else Color.Transparent)
+            .combinedClickable(onClick = onClick, onLongClick = onLong)
+            .padding(4.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Box(Modifier.fillMaxWidth().aspectRatio(1f), contentAlignment = Alignment.Center) {
+            if (isPhoto && ref != null) {
+                Thumb(ref, kind, Modifier.fillMaxSize())
+            } else {
+                FileIcon(e, ref, 64.dp)
+            }
+            if (selecting) {
+                Box(Modifier.align(Alignment.TopStart).padding(6.dp)) { SelCircle(selected) }
+            }
+        }
+        if (!isPhoto) {
+            Text(
+                e.name,
+                fontSize = 12.sp,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(top = 4.dp, bottom = 2.dp)
+            )
         }
     }
 }

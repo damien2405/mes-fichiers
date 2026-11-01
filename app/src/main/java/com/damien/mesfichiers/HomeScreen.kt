@@ -2,13 +2,14 @@ package com.damien.mesfichiers
 
 import android.os.Environment
 import android.os.StatFs
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -18,17 +19,16 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -38,9 +38,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -58,10 +62,10 @@ fun HomeScreen() {
         Tile("Téléchargements", Glyph.DOWNLOAD, Color(0xFF1FB59A)) {
             AppModel.push(Screen.Browse(Loc.Local("$root/Download")))
         },
-        Tile("Docs", Glyph.DOC, Color(0xFFE0A03E)) { AppModel.push(Screen.Browse(Loc.Category(Cat.DOCS))) },
         Tile("Images", Glyph.IMAGE, Color(0xFFE5547E)) { AppModel.push(Screen.Browse(Loc.Category(Cat.IMAGES))) },
-        Tile("Audio", Glyph.AUDIO, Color(0xFF6B73E8)) { AppModel.push(Screen.Browse(Loc.Category(Cat.AUDIO))) },
         Tile("Vidéos", Glyph.VIDEO, Color(0xFF8E4FE0)) { AppModel.push(Screen.Browse(Loc.Category(Cat.VIDEOS))) },
+        Tile("Audio", Glyph.AUDIO, Color(0xFF5B6EE8)) { AppModel.push(Screen.Browse(Loc.Category(Cat.AUDIO))) },
+        Tile("Docs", Glyph.DOC, Color(0xFFF0A020)) { AppModel.push(Screen.Browse(Loc.Category(Cat.DOCS))) },
         Tile("Fichiers d'installation", Glyph.APK, Color(0xFF7BB500)) { AppModel.push(Screen.Browse(Loc.Category(Cat.APK))) }
     )
 
@@ -72,10 +76,13 @@ fun HomeScreen() {
             .verticalScroll(rememberScrollState())
     ) {
         Row(
-            Modifier.fillMaxWidth().padding(start = 28.dp, end = 8.dp, top = 14.dp, bottom = 14.dp),
+            Modifier.fillMaxWidth().padding(start = 28.dp, end = 8.dp, top = 18.dp, bottom = 14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("Mes fichiers", fontSize = 30.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+            Column(Modifier.weight(1f)) {
+                Text("Mes fichiers", fontSize = 32.sp, fontWeight = FontWeight.Bold)
+                Text("Ton téléphone et ton serveur, au même endroit", fontSize = 14.sp, color = cs.onSurfaceVariant)
+            }
             Box {
                 IconButton(onClick = { menu = true }) {
                     Icon(Icons.Default.MoreVert, contentDescription = "Menu")
@@ -92,53 +99,35 @@ fun HomeScreen() {
             }
         }
 
-        SectionCard {
-            for (row in tiles.chunked(2)) {
-                Row(Modifier.fillMaxWidth()) {
-                    for (t in row) CategoryTile(t, Modifier.weight(1f))
+        StorageHero(root)
+
+        SectionLabel("Catégories")
+        Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            for (row in tiles.chunked(3)) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    for (t in row) CategoryCard(t, Modifier.weight(1f))
                 }
             }
         }
 
-        Text(
-            "Stockage",
-            fontSize = 14.sp,
-            color = cs.onSurfaceVariant,
-            fontWeight = FontWeight.Medium,
-            modifier = Modifier.padding(start = 32.dp, top = 24.dp, bottom = 8.dp)
-        )
-
-        SectionCard {
-            InternalStorageRow(root)
+        SectionLabel("Serveurs")
+        Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             for (s in AppModel.servers) {
-                HorizontalDivider(Modifier.padding(horizontal = 20.dp), color = cs.outlineVariant)
-                Row(
-                    Modifier
-                        .fillMaxWidth()
-                        .clickable { AppModel.push(Screen.Browse(Loc.Ftp(s.id, "~"))) }
-                        .padding(horizontal = 20.dp, vertical = 14.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    GlyphIcon(Glyph.SERVER, cs.onSurface, Modifier.size(34.dp))
-                    Spacer(Modifier.width(16.dp))
-                    Column(Modifier.weight(1f)) {
-                        Text(s.name, fontSize = 18.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        Text("FTP · " + s.cfg.host, fontSize = 14.sp, color = cs.onSurfaceVariant, maxLines = 1)
-                    }
-                }
+                NavCard(
+                    glyph = Glyph.SERVER,
+                    color = Color(0xFF3B7BFF),
+                    title = s.name,
+                    subtitle = "FTP · " + s.cfg.host,
+                    onClick = { AppModel.push(Screen.Browse(Loc.Ftp(s.id, "~"))) }
+                )
             }
-            HorizontalDivider(Modifier.padding(horizontal = 20.dp), color = cs.outlineVariant)
-            Row(
-                Modifier
-                    .fillMaxWidth()
-                    .clickable { AppModel.push(Screen.Network) }
-                    .padding(horizontal = 20.dp, vertical = 18.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                GlyphIcon(Glyph.SERVER, cs.onSurface, Modifier.size(34.dp))
-                Spacer(Modifier.width(16.dp))
-                Text("Espace de stockage réseau", fontSize = 18.sp)
-            }
+            NavCard(
+                glyph = Glyph.SERVER,
+                color = Color(0xFF7A8090),
+                title = "Espace de stockage réseau",
+                subtitle = if (AppModel.servers.isEmpty()) "Ajouter ton serveur FTP" else "Ajouter ou modifier un serveur",
+                onClick = { AppModel.push(Screen.Network) }
+            )
         }
 
         Spacer(Modifier.height(32.dp).navigationBarsPadding())
@@ -146,26 +135,7 @@ fun HomeScreen() {
 }
 
 @Composable
-private fun CategoryTile(t: Tile, modifier: Modifier) {
-    Row(
-        modifier
-            .clickable(onClick = t.onClick)
-            .padding(horizontal = 16.dp, vertical = 14.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Box(
-            Modifier.size(54.dp).clip(CircleShape).background(t.color.copy(alpha = 0.15f)),
-            contentAlignment = Alignment.Center
-        ) {
-            GlyphIcon(t.glyph, t.color, Modifier.size(28.dp))
-        }
-        Spacer(Modifier.width(12.dp))
-        Text(t.label, fontSize = 16.sp, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
-    }
-}
-
-@Composable
-private fun InternalStorageRow(root: String) {
+private fun StorageHero(root: String) {
     val cs = MaterialTheme.colorScheme
     val stat = remember { StatFs(root) }
     val total = stat.totalBytes.toDouble()
@@ -177,38 +147,97 @@ private fun InternalStorageRow(root: String) {
     val used = (capBytes - avail).coerceIn(0.0, capBytes)
     val frac = (used / capBytes).toFloat().coerceIn(0f, 1f)
     val pct = (frac * 100f).toInt()
+    val track = cs.surfaceVariant
+    val accent = cs.primary
 
-    Row(
-        Modifier
+    Surface(
+        modifier = Modifier
             .fillMaxWidth()
-            .clickable { AppModel.push(Screen.Browse(Loc.Local(root))) }
-            .padding(horizontal = 20.dp, vertical = 16.dp),
-        verticalAlignment = Alignment.CenterVertically
+            .padding(horizontal = 16.dp)
+            .clip(RoundedCornerShape(28.dp))
+            .clickable { AppModel.push(Screen.Browse(Loc.Local(root))) },
+        shape = RoundedCornerShape(28.dp),
+        color = cs.surface
     ) {
-        GlyphIcon(Glyph.PHONE, cs.onSurface, Modifier.size(34.dp))
-        Spacer(Modifier.width(16.dp))
-        Column(Modifier.weight(1f)) {
-            Text("Stockage interne", fontSize = 18.sp)
-            Text("$pct% utilisé(s)", fontSize = 14.sp, color = cs.primary)
-        }
-        Column(horizontalAlignment = Alignment.End) {
-            Text(
-                String.format(Locale.FRANCE, "%.1f Go / %d Go", used / 1e9, cap.toInt()),
-                fontSize = 13.sp,
-                color = cs.onSurfaceVariant
-            )
-            Spacer(Modifier.height(6.dp))
-            Box(
-                Modifier.width(120.dp).height(12.dp).clip(RoundedCornerShape(6.dp)).background(cs.surfaceVariant)
-            ) {
-                Box(
-                    Modifier
-                        .fillMaxHeight()
-                        .width((120f * frac).dp)
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(Brush.horizontalGradient(listOf(Color(0xFF7FE0C0), Color(0xFF5B8CFF))))
+        Row(Modifier.padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.size(96.dp), contentAlignment = Alignment.Center) {
+                Canvas(Modifier.size(96.dp)) {
+                    val sw = 12.dp.toPx()
+                    val arcSize = Size(size.width - sw, size.height - sw)
+                    val topLeft = Offset(sw / 2f, sw / 2f)
+                    drawArc(
+                        color = track, startAngle = -90f, sweepAngle = 360f, useCenter = false,
+                        topLeft = topLeft, size = arcSize, style = Stroke(width = sw, cap = StrokeCap.Round)
+                    )
+                    drawArc(
+                        color = accent, startAngle = -90f, sweepAngle = 360f * frac, useCenter = false,
+                        topLeft = topLeft, size = arcSize, style = Stroke(width = sw, cap = StrokeCap.Round)
+                    )
+                }
+                Text("$pct%", fontSize = 20.sp, fontWeight = FontWeight.Bold)
+            }
+            Spacer(Modifier.width(20.dp))
+            Column(Modifier.weight(1f)) {
+                Text("Stockage interne", fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    String.format(Locale.FRANCE, "%.1f Go utilisés sur %d Go", used / 1e9, cap.toInt()),
+                    fontSize = 14.sp,
+                    color = cs.onSurfaceVariant
+                )
+                Text(
+                    String.format(Locale.FRANCE, "%.1f Go libres", avail / 1e9),
+                    fontSize = 14.sp,
+                    color = cs.primary,
+                    fontWeight = FontWeight.Medium
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun CategoryCard(t: Tile, modifier: Modifier) {
+    Surface(
+        modifier = modifier.clip(RoundedCornerShape(24.dp)).clickable(onClick = t.onClick),
+        shape = RoundedCornerShape(24.dp),
+        color = MaterialTheme.colorScheme.surface
+    ) {
+        Column(
+            Modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = 16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            IconChip(t.glyph, t.color, 48.dp)
+            Spacer(Modifier.height(10.dp))
+            Text(
+                t.label,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Medium,
+                textAlign = TextAlign.Center,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                minLines = 2
+            )
+        }
+    }
+}
+
+@Composable
+private fun NavCard(glyph: Glyph, color: Color, title: String, subtitle: String, onClick: () -> Unit) {
+    val cs = MaterialTheme.colorScheme
+    Surface(
+        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).clickable(onClick = onClick),
+        shape = RoundedCornerShape(24.dp),
+        color = cs.surface
+    ) {
+        Row(Modifier.padding(horizontal = 16.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
+            IconChip(glyph, color, 46.dp)
+            Spacer(Modifier.width(14.dp))
+            Column(Modifier.weight(1f)) {
+                Text(title, fontSize = 17.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(subtitle, fontSize = 13.sp, color = cs.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+            Text("›", fontSize = 26.sp, color = cs.onSurfaceVariant)
         }
     }
 }
