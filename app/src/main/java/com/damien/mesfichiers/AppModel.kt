@@ -131,7 +131,8 @@ object AppModel {
                         anonymous = o.optBoolean("anon", false),
                         passive = o.optBoolean("passive", true),
                         encoding = o.optString("enc", "UTF-8"),
-                        trustAll = o.optBoolean("trust", false)
+                        trustAll = o.optBoolean("trust", false),
+                        startPath = o.optString("start")
                     )
                     servers.add(Server(o.getString("id"), o.optString("name"), cfg))
                 }
@@ -157,6 +158,7 @@ object AppModel {
             o.put("passive", s.cfg.passive)
             o.put("enc", s.cfg.encoding)
             o.put("trust", s.cfg.trustAll)
+            o.put("start", s.cfg.startPath)
             arr.put(o)
         }
         prefs.edit().putString("servers", arr.toString()).apply()
@@ -182,6 +184,17 @@ object AppModel {
         if (i < 0) return
         servers[i] = servers[i].copy(name = name)
         persist()
+    }
+
+    fun setStartPath(id: String, path: String) {
+        val i = servers.indexOfFirst { it.id == id }
+        if (i < 0) return
+        val s = servers[i]
+        servers[i] = s.copy(cfg = s.cfg.copy(startPath = path))
+        persist()
+        dropPool(id)
+        homes.remove(id)
+        cache.keys.removeAll { it is Loc.Ftp && it.serverId == id }
     }
 
     fun deleteServers(ids: Collection<String>) {

@@ -154,6 +154,7 @@ private fun BrowseContent(loc: Loc) {
     var renaming by remember { mutableStateOf<Entry?>(null) }
     var busy by remember { mutableStateOf<String?>(null) }
     var menu by remember { mutableStateOf(false) }
+    var dirShown by remember { mutableStateOf<String?>(null) }
     var sortMenu by remember { mutableStateOf(false) }
     val hidden = AppModel.showHidden
 
@@ -165,11 +166,13 @@ private fun BrowseContent(loc: Loc) {
                 is Loc.Category -> withContext(Dispatchers.IO) { queryCategory(loc.cat) }
                 is Loc.Ftp -> {
                     val pool = AppModel.pool(loc.serverId) ?: throw IOException("Serveur introuvable")
+                    val start = AppModel.servers.firstOrNull { it.id == loc.serverId }?.cfg?.startPath ?: ""
                     val res = pool.use { c ->
-                        val dir = FtpOps.resolve(c, loc.path)
+                        val dir = FtpOps.resolve(c, loc.path, start)
                         Pair(dir, FtpOps.list(c, dir))
                     }
                     if (loc.path == "~") AppModel.homes[loc.serverId] = res.first
+                    dirShown = res.first
                     res.second.map { f -> Entry(f.name, FtpOps.join(res.first, f.name), f.isDir, f.size, f.modified, f.isLink) }
                 }
             }
@@ -300,6 +303,20 @@ private fun BrowseContent(loc: Loc) {
                                     menu = false
                                     reload++
                                 })
+                                val dir = dirShown
+                                if (serverId != null && dir != null) {
+                                    if (dir != "/") {
+                                        DropdownMenuItem(text = { Text("Dossier parent") }, onClick = {
+                                            menu = false
+                                            AppModel.goTo(Loc.Ftp(serverId, FtpOps.parentOf(dir)))
+                                        })
+                                    }
+                                    DropdownMenuItem(text = { Text("Définir comme dossier de départ") }, onClick = {
+                                        menu = false
+                                        AppModel.setStartPath(serverId, dir)
+                                        toast("Dossier de départ : $dir")
+                                    })
+                                }
                                 if (!isFtp) {
                                     DropdownMenuItem(
                                         text = { Text(if (hidden) "Masquer les fichiers cachés" else "Afficher les fichiers cachés") },
@@ -314,6 +331,18 @@ private fun BrowseContent(loc: Loc) {
                     }
                 }
                 Crumbs(crumbsOf(loc))
+            }
+
+            val pathLine = dirShown
+            if (isFtp && pathLine != null) {
+                Text(
+                    pathLine,
+                    fontSize = 12.sp,
+                    color = cs.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(horizontal = 24.dp)
+                )
             }
 
             // ligne de tri, comme dans « Mes fichiers »

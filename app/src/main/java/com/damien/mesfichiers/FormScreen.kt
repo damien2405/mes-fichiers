@@ -69,6 +69,7 @@ fun FormScreen(screen: Screen.Form) {
     var passive by rememberSaveable { mutableStateOf(if (existing != null) existing.cfg.passive else true) }
     var enc by rememberSaveable { mutableStateOf(if (existing?.cfg?.encoding == "ISO-8859-1") 1 else 0) }
     var trust by rememberSaveable { mutableStateOf(existing?.cfg?.trustAll ?: false) }
+    var startPath by rememberSaveable { mutableStateOf(existing?.cfg?.startPath ?: "") }
     var name by rememberSaveable { mutableStateOf(existing?.name ?: "") }
     var showPass by remember { mutableStateOf(false) }
     var testing by remember { mutableStateOf(false) }
@@ -86,7 +87,8 @@ fun FormScreen(screen: Screen.Form) {
             anonymous = anon,
             passive = passive,
             encoding = if (enc == 1) "ISO-8859-1" else "UTF-8",
-            trustAll = trust
+            trustAll = trust,
+            startPath = startPath.trim()
         )
     }
 
@@ -121,6 +123,7 @@ fun FormScreen(screen: Screen.Form) {
                 )
                 CheckRow("Se connecter anonymement", anon) { anon = it }
                 Choice("Mode de transfert", listOf("Passif", "Actif"), if (passive) 0 else 1) { passive = it == 0 }
+                Field("Dossier de départ (facultatif)", startPath, { startPath = it }, keyboard = KeyboardType.Uri)
                 Field("Pseudo", name, { name = it })
                 Choice("Codage", listOf("UTF-8", "ISO-8859-1"), enc) { enc = it }
 
@@ -139,8 +142,9 @@ fun FormScreen(screen: Screen.Form) {
                                         withContext(Dispatchers.IO) {
                                             val c = FtpOps.open(cfg)
                                             try {
-                                                val n = FtpOps.list(c, FtpOps.resolve(c, "~")).size
-                                                "✓ Connexion réussie ($n éléments dans ton dossier)"
+                                                val dir = FtpOps.resolve(c, "~", cfg.startPath)
+                                                val n = FtpOps.list(c, dir).size
+                                                "✓ Connexion réussie. Dossier : $dir ($n éléments)"
                                             } finally {
                                                 FtpOps.quietClose(c)
                                             }

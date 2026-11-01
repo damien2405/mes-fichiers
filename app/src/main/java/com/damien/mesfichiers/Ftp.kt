@@ -28,7 +28,8 @@ data class FtpConfig(
     val anonymous: Boolean = false,
     val passive: Boolean = true,
     val encoding: String = "UTF-8",
-    val trustAll: Boolean = false
+    val trustAll: Boolean = false,
+    val startPath: String = ""
 )
 
 data class FtpEntry(
@@ -136,8 +137,11 @@ object FtpOps {
     }
 
     /** "~" désigne le dossier où le serveur dépose l'utilisateur après la connexion. */
-    fun resolve(c: FTPClient, path: String): String =
-        if (path == "~") (c.printWorkingDirectory() ?: "/") else path
+    fun resolve(c: FTPClient, path: String, start: String = ""): String {
+        if (path != "~") return path
+        if (start.isNotBlank()) return start
+        return c.printWorkingDirectory() ?: "/"
+    }
 
     fun join(dir: String, name: String): String = if (dir.endsWith("/")) dir + name else "$dir/$name"
 
