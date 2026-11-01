@@ -107,7 +107,7 @@ fun NetworkScreen() {
                                     if (selecting) {
                                         if (isSel) selected.remove(s.id) else selected.add(s.id)
                                     } else {
-                                        AppModel.push(Screen.Browse(Loc.Ftp(s.id, "/")))
+                                        AppModel.push(Screen.Browse(Loc.Ftp(s.id, "~")))
                                     }
                                 },
                                 onLongClick = { if (!isSel) selected.add(s.id) }

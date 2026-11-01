@@ -55,6 +55,9 @@ object AppModel {
     /** Dernier listing connu de chaque dossier : affiché tout de suite pendant le rechargement. */
     val cache = HashMap<Loc, List<Entry>>()
 
+    /** Dossier de connexion résolu de chaque serveur (pour le fil d'Ariane). */
+    val homes = HashMap<String, String>()
+
     private var uidGen = 10L
     fun nextUid(): Long = uidGen++
 
@@ -170,6 +173,7 @@ object AppModel {
         if (i >= 0) servers[i] = s else servers.add(s)
         persist()
         dropPool(s.id)
+        homes.remove(s.id)
         cache.keys.removeAll { it is Loc.Ftp && it.serverId == s.id }
     }
 
@@ -185,6 +189,7 @@ object AppModel {
         persist()
         for (id in ids) {
             dropPool(id)
+            homes.remove(id)
             cache.keys.removeAll { it is Loc.Ftp && it.serverId == id }
         }
     }

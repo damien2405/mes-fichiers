@@ -165,8 +165,12 @@ private fun BrowseContent(loc: Loc) {
                 is Loc.Category -> withContext(Dispatchers.IO) { queryCategory(loc.cat) }
                 is Loc.Ftp -> {
                     val pool = AppModel.pool(loc.serverId) ?: throw IOException("Serveur introuvable")
-                    val raw = pool.use { c -> FtpOps.list(c, loc.path) }
-                    raw.map { f -> Entry(f.name, FtpOps.join(loc.path, f.name), f.isDir, f.size, f.modified, f.isLink) }
+                    val res = pool.use { c ->
+                        val dir = FtpOps.resolve(c, loc.path)
+                        Pair(dir, FtpOps.list(c, dir))
+                    }
+                    if (loc.path == "~") AppModel.homes[loc.serverId] = res.first
+                    res.second.map { f -> Entry(f.name, FtpOps.join(res.first, f.name), f.isDir, f.size, f.modified, f.isLink) }
                 }
             }
             AppModel.cache[loc] = list
@@ -504,7 +508,7 @@ private fun titleOf(loc: Loc): String = when (loc) {
     }
     is Loc.Ftp -> {
         val name = AppModel.servers.firstOrNull { it.id == loc.serverId }?.name ?: "Serveur"
-        if (loc.path == "/") name else loc.path.trimEnd('/').substringAfterLast('/')
+        if (loc.path == "/" || loc.path == "~") name else loc.path.trimEnd('/').substringAfterLast('/')
     }
 }
 
@@ -527,13 +531,21 @@ private fun crumbsOf(loc: Loc): List<Pair<String, () -> Unit>> {
         }
         is Loc.Ftp -> {
             val name = AppModel.servers.firstOrNull { it.id == loc.serverId }?.name ?: "Serveur"
-            out.add(name to { AppModel.goTo(Loc.Ftp(loc.serverId, "/")) })
-            var cur = ""
-            for (seg in loc.path.split('/')) {
-                if (seg.isEmpty()) continue
-                cur = "$cur/$seg"
-                val p = cur
-                out.add(seg to { AppModel.goTo(Loc.Ftp(loc.serverId, p)) })
+            out.add(name to { AppModel.goTo(Loc.Ftp(loc.serverId, "~")) })
+            if (loc.path != "~") {
+                val home = AppModel.homes[loc.serverId]?.trimEnd('/')
+                var cur = ""
+                var rel = loc.path
+                if (!home.isNullOrEmpty() && loc.path.startsWith("$home/")) {
+                    cur = home
+                    rel = loc.path.removePrefix(home)
+                }
+                for (seg in rel.split('/')) {
+                    if (seg.isEmpty()) continue
+                    cur = "$cur/$seg"
+                    val p = cur
+                    out.add(seg to { AppModel.goTo(Loc.Ftp(loc.serverId, p)) })
+                }
             }
         }
     }

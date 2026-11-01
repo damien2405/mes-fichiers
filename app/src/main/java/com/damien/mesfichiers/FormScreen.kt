@@ -139,8 +139,8 @@ fun FormScreen(screen: Screen.Form) {
                                         withContext(Dispatchers.IO) {
                                             val c = FtpOps.open(cfg)
                                             try {
-                                                val n = FtpOps.list(c, "/").size
-                                                "✓ Connexion réussie ($n éléments à la racine)"
+                                                val n = FtpOps.list(c, FtpOps.resolve(c, "~")).size
+                                                "✓ Connexion réussie ($n éléments dans ton dossier)"
                                             } finally {
                                                 FtpOps.quietClose(c)
                                             }

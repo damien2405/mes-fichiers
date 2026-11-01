@@ -135,6 +135,10 @@ object FtpOps {
         if (!c.removeDirectory(path)) throw IOException("Suppression impossible : " + c.replyString.trim())
     }
 
+    /** "~" désigne le dossier où le serveur dépose l'utilisateur après la connexion. */
+    fun resolve(c: FTPClient, path: String): String =
+        if (path == "~") (c.printWorkingDirectory() ?: "/") else path
+
     fun join(dir: String, name: String): String = if (dir.endsWith("/")) dir + name else "$dir/$name"
 
     fun parentOf(path: String): String {

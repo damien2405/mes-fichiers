@@ -115,7 +115,7 @@ fun HomeScreen() {
                 Row(
                     Modifier
                         .fillMaxWidth()
-                        .clickable { AppModel.push(Screen.Browse(Loc.Ftp(s.id, "/"))) }
+                        .clickable { AppModel.push(Screen.Browse(Loc.Ftp(s.id, "~"))) }
                         .padding(horizontal = 20.dp, vertical = 14.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
