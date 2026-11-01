@@ -72,7 +72,7 @@ object AppModel {
         scope.launch(Dispatchers.IO) { FileCache.trim() }
     }
 
-    fun setShowHidden(v: Boolean) {
+    fun updateShowHidden(v: Boolean) {
         showHidden = v
         prefs.edit().putBoolean("hidden", v).apply()
     }

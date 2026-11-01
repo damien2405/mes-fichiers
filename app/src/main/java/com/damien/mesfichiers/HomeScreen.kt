@@ -84,7 +84,7 @@ fun HomeScreen() {
                     DropdownMenuItem(
                         text = { Text(if (AppModel.showHidden) "Masquer les fichiers cachés" else "Afficher les fichiers cachés") },
                         onClick = {
-                            AppModel.setShowHidden(!AppModel.showHidden)
+                            AppModel.updateShowHidden(!AppModel.showHidden)
                             menu = false
                         }
                     )

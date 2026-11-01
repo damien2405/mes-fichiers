@@ -301,7 +301,7 @@ private fun BrowseContent(loc: Loc) {
                                         text = { Text(if (hidden) "Masquer les fichiers cachés" else "Afficher les fichiers cachés") },
                                         onClick = {
                                             menu = false
-                                            AppModel.setShowHidden(!hidden)
+                                            AppModel.updateShowHidden(!hidden)
                                         }
                                     )
                                 }
